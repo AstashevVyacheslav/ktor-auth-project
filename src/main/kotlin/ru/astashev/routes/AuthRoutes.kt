@@ -8,7 +8,12 @@ import io.ktor.server.routing.*
 import ru.astashev.data.UserDataSource
 import ru.astashev.data.models.User
 import ru.astashev.data.models.requests.AuthRequest
+import ru.astashev.data.models.responses.AuthResponse
 import ru.astashev.security.hashing.HashingService
+import ru.astashev.security.hashing.SaltedHash
+import ru.astashev.security.token.JwtTokenService
+import ru.astashev.security.token.TokenClaim
+import ru.astashev.security.token.TokenConfig
 
 fun Route.signUp(
     hashingService: HashingService,
@@ -44,5 +49,52 @@ fun Route.signUp(
         }else{
             call.respond(HttpStatusCode.OK)
         }
+    }
+}
+
+fun Route.signIn(
+    userDataSource: UserDataSource,
+    hashingService: HashingService,
+    tokenService: JwtTokenService,
+    tokenConfig: TokenConfig
+){
+    post ("signin"){
+        val request = call.receiveOrNull<AuthRequest>()?: kotlin.run {
+            call.respond(HttpStatusCode.BadRequest)
+            return@post
+        }
+        val user = userDataSource.getUserByUsername(request.username)
+        if (user == null){
+            call.respond(HttpStatusCode.Conflict,"Incorrect username or passsword")
+            return@post
+        }
+
+        val isValidPassword = hashingService.verify(
+            value = request.password,
+            saltedHash = SaltedHash(
+                hash = user.password,
+                salt = user.salt
+            )
+        )
+
+        if (!isValidPassword){
+            call.respond(HttpStatusCode.Conflict,"Incorrect username or passsword")
+            return@post
+        }
+
+        val token = tokenService.generate(
+            config = tokenConfig,
+            TokenClaim(
+                name = "userId",
+                value = user.id.toString()
+            )
+        )
+
+        call.respond(
+            status = HttpStatusCode.OK,
+            message = AuthResponse(
+                token = token
+            )
+        )
     }
 }
