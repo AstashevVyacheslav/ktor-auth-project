@@ -4,6 +4,7 @@ package ru.astashev.plugins
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import ru.astashev.data.UserDataSource
+import ru.astashev.routes.signUp
 import ru.astashev.security.hashing.HashingService
 import ru.astashev.security.token.JwtTokenService
 import ru.astashev.security.token.TokenConfig
@@ -15,6 +16,6 @@ fun Application.configureRouting(
     tokenConfig: TokenConfig
 ) {
     routing {
-
+        signUp(hashingService =hashingService, userDataSource = userDataSource)
     }
 }
